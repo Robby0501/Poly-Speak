@@ -1,28 +1,18 @@
-class User:
-    def __init__(self, username, target_language, proficiency_level):
-        self.username = username
-        self.target_language = target_language
-        self.proficiency_level = proficiency_level
-        self.points = 0
-        self.streak = 0
-        self.badges = []
-        self.vocabulary = set()
-        self.mistakes = {}
+from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy.ext.declarative import declarative_base
+from datetime import datetime
 
-    def add_points(self, points):
-        self.points += points
+Base = declarative_base()
 
-    def increase_streak(self):
-        self.streak += 1
+class User(Base):
+    __tablename__ = "users"
 
-    def add_badge(self, badge):
-        self.badges.append(badge)
-
-    def add_vocabulary(self, word):
-        self.vocabulary.add(word)
-
-    def add_mistake(self, word):
-        if word in self.mistakes:
-            self.mistakes[word] += 1
-        else:
-            self.mistakes[word] = 1
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    email = Column(String, unique=True, index=True)
+    password_hash = Column(String)
+    language_to_learn = Column(String)
+    proficiency_level = Column(String)
+    daily_goal = Column(Integer)
+    start_option = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
