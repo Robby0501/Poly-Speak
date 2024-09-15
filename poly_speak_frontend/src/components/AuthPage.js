@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
-function UserRegistration() {
+function AuthPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -12,26 +13,18 @@ function UserRegistration() {
     setErrorMessage('');
 
     try {
-      // Instead of creating the user here, we'll just validate the email and password
-      // and then redirect to the StepByStepSignup component
-      if (!email || !password) {
-        setErrorMessage('Please enter both email and password');
-        return;
-      }
-
-      // You might want to add more validation here (e.g., email format, password strength)
-
-      // If validation passes, redirect to StepByStepSignup with email and password as state
-      navigate('/signup', { state: { email, password } });
+      const response = await axios.post('http://localhost:5001/login', { email, password });
+      console.log('Login successful', response.data);
+      // TODO: Handle successful login (e.g., store token, redirect)
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Auth error:', error);
       setErrorMessage(error.response?.data?.error || 'An error occurred');
     }
   };
 
   return (
     <div>
-      <h2>User Registration</h2>
+      <h2>Login</h2>
       {errorMessage && <p style={{ color: 'red' }}>{errorMessage}</p>}
       <form onSubmit={handleSubmit}>
         <input
@@ -48,13 +41,13 @@ function UserRegistration() {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        <button type="submit">Next</button>
+        <button type="submit">Login</button>
       </form>
-      <button onClick={() => navigate('/')}>
-        Already have an account? Login
+      <button onClick={() => navigate('/register')}>
+        Need an account? Sign Up
       </button>
     </div>
   );
 }
 
-export default UserRegistration;
+export default AuthPage;

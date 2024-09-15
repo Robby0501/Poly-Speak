@@ -23,6 +23,7 @@ LessonGenerator()
 def create_user():
     try:
         data = request.json
+        print("Received data:", data)  # Debug print
         name = data.get('name')
         email = data.get('email')
         password = data.get('password')
@@ -32,39 +33,50 @@ def create_user():
         start_option = data.get('start_option')
 
         if not all([name, email, password, language_to_learn, proficiency_level, daily_goal, start_option]):
+            print("Missing required fields")  # Debug print
             return jsonify({'error': 'Missing required fields'}), 400
 
         existing_user = g.db.query(User).filter(User.email == email).first()
         if existing_user:
+            print("User with this email already exists")  # Debug print
             return jsonify({'error': 'User with this email already exists'}), 400
 
-        # TODO: Hash the password before storing it
+        hashed_password = User.hash_password(password)
         new_user = User(
             name=name,
             email=email,
-            password_hash=password,  # Replace this with a hashed password
+            password_hash=hashed_password,
             language_to_learn=language_to_learn,
             proficiency_level=proficiency_level,
-            daily_goal=daily_goal,
+            daily_goal=int(daily_goal),  # Ensure daily_goal is an integer
             start_option=start_option
         )
         g.db.add(new_user)
         g.db.commit()
+        print("User created successfully:", new_user.id)  # Debug print
         return jsonify({'message': 'User created successfully', 'user_id': new_user.id}), 201
     except Exception as e:
         g.db.rollback()
+        print("Error creating user:", str(e))  # Debug print
+        import traceback
+        traceback.print_exc()  # Print the full traceback
         return jsonify({'error': str(e)}), 500
-    
-@api_bp.route('/lesson', methods=['GET'])
-def get_lesson():
-    username = request.args.get('username')
-    lesson_type = request.args.get('lesson_type', 'vocabulary')
 
-    user = g.db.query(User).filter(User.username == username).first()
+@api_bp.route('/initial-lesson', methods=['GET'])
+def get_initial_lesson():
+    user_id = request.args.get('user_id')
+    start_option = request.args.get('start_option')
+    proficiency_level = request.args.get('proficiency_level')
+
+    user = g.db.query(User).filter(User.id == user_id).first()
     if not user:
         return jsonify({'error': 'User not found'}), 404
 
-    lesson = lesson_generator.generate_lesson(user.target_language, user.proficiency_level, lesson_type)
+    if start_option == 'from scratch':
+        lesson = lesson_generator.generate_lesson(user.language_to_learn, 'beginner', 'vocabulary')
+    else:  # 'find my level'
+        lesson = lesson_generator.generate_lesson(user.language_to_learn, proficiency_level, 'vocabulary')
+
     return jsonify({'lesson': lesson})
 
 @api_bp.route('/quiz', methods=['GET'])
