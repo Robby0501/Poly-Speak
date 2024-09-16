@@ -13,12 +13,33 @@ function AuthPage() {
     setErrorMessage('');
 
     try {
-      const response = await axios.post('http://localhost:5001/login', { email, password });
-      console.log('Login successful', response.data);
-      // TODO: Handle successful login (e.g., store token, redirect)
+      console.log('Attempting to login with:', { email, password });
+      const response = await axios.post('http://localhost:5001/login', { email, password }, {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log('Login response:', response.data);
+      navigate('/dashboard', {
+        state: {
+          userId: response.data.user_id,
+          language: response.data.language_to_learn,
+        }
+      });
     } catch (error) {
       console.error('Auth error:', error);
-      setErrorMessage(error.response?.data?.error || 'An error occurred');
+      if (error.response) {
+        console.error('Error data:', error.response.data);
+        console.error('Error status:', error.response.status);
+        setErrorMessage(error.response.data.error || 'An error occurred during login');
+      } else if (error.request) {
+        console.error('Error request:', error.request);
+        setErrorMessage('No response received from the server. Please try again.');
+      } else {
+        console.error('Error message:', error.message);
+        setErrorMessage('An error occurred while sending the request. Please try again.');
+      }
     }
   };
 

@@ -103,7 +103,14 @@ function StepByStepSignup() {
   
     const result = await handleSubmit(option);
     if (result) {
-      navigate('/dashboard', { state: { userId: result.userId, lesson: result.lesson, startOption: option } });
+      navigate('/dashboard', { 
+        state: { 
+          userId: result.userId, 
+          language: language,
+          lesson: result.lesson, 
+          startOption: option 
+        } 
+      });
     }
   };
 

@@ -1,8 +1,10 @@
 from flask import Blueprint, jsonify, request, g
 from app.models.user import User
 from app.services.lesson_generator import LessonGenerator
+from flask_cors import cross_origin
 import os
 from sqlalchemy.orm import Session
+import traceback
 
 api_bp = Blueprint('api', __name__)
 
@@ -10,14 +12,45 @@ openai_api_key = os.getenv("OPENAI_API_KEY")
 lesson_generator = LessonGenerator(openai_api_key=openai_api_key)
 LessonGenerator()
 
-# Temporary storage for users (replace with a database in a real application)
+@api_bp.route('/login', methods=['POST'])
+@cross_origin(supports_credentials=True)
+def login():
+    data = request.json
+    email = data.get('email')
+    password = data.get('password')
 
-# def get_db():
-#     db = Session()
-#     try:
-#         yield db
-#     finally:
-#         db.close()
+    print(f"Login attempt for email: {email}")
+
+    if not email or not password:
+        return jsonify({'error': 'Email and password are required'}), 400
+
+    try:
+        # Use email as string
+        user = g.db.query(User).filter(User.email == email).first()
+        print(f"User found: {user is not None}")
+
+        if user:
+            print(f"Stored password hash type: {type(user.password_hash)}")
+            print(f"Stored password hash length: {len(user.password_hash)}")
+            password_correct = user.check_password(password)
+            print(f"Password correct: {password_correct}")
+
+            if password_correct:
+                response = jsonify({
+                    'message': 'Login successful',
+                    'user_id': user.id,
+                    'language_to_learn': user.language_to_learn
+                })
+                return response, 200
+            else:
+                return jsonify({'error': 'Invalid email or password'}), 401
+        else:
+            return jsonify({'error': 'Invalid email or password'}), 401
+
+    except Exception as e:
+        print(f"Error during login: {str(e)}")
+        traceback.print_exc()
+        return jsonify({'error': 'An internal server error occurred'}), 500
 
 @api_bp.route('/user', methods=['POST'])
 def create_user():
@@ -36,6 +69,7 @@ def create_user():
             print("Missing required fields")  # Debug print
             return jsonify({'error': 'Missing required fields'}), 400
 
+        # Use email as string without encoding
         existing_user = g.db.query(User).filter(User.email == email).first()
         if existing_user:
             print("User with this email already exists")  # Debug print
@@ -44,11 +78,11 @@ def create_user():
         hashed_password = User.hash_password(password)
         new_user = User(
             name=name,
-            email=email,
+            email=email,  # Store as string
             password_hash=hashed_password,
             language_to_learn=language_to_learn,
             proficiency_level=proficiency_level,
-            daily_goal=int(daily_goal),  # Ensure daily_goal is an integer
+            daily_goal=int(daily_goal),
             start_option=start_option
         )
         g.db.add(new_user)
@@ -58,7 +92,6 @@ def create_user():
     except Exception as e:
         g.db.rollback()
         print("Error creating user:", str(e))  # Debug print
-        import traceback
         traceback.print_exc()  # Print the full traceback
         return jsonify({'error': str(e)}), 500
 
@@ -78,6 +111,45 @@ def get_initial_lesson():
         lesson = lesson_generator.generate_lesson(user.language_to_learn, proficiency_level, 'vocabulary')
 
     return jsonify({'lesson': lesson})
+
+@api_bp.route('/units/<int:user_id>', methods=['GET'])
+def get_units(user_id):
+    user = g.db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    # This is a mock-up of units and lessons. In a real application, you'd fetch this from a database.
+    units = [
+        {
+            'id': 1,
+            'title': 'Greetings and Basics',
+            'lessons': [
+                {'id': 1, 'title': 'Hello and Goodbye'},
+                {'id': 2, 'title': 'Basic Phrases'},
+                {'id': 3, 'title': 'Numbers 1-10'},
+            ]
+        },
+        {
+            'id': 2,
+            'title': 'Travel Essentials',
+            'lessons': [
+                {'id': 4, 'title': 'At the Airport'},
+                {'id': 5, 'title': 'Booking a Hotel'},
+                {'id': 6, 'title': 'Asking for Directions'},
+            ]
+        },
+        {
+            'id': 3,
+            'title': 'Daily Life',
+            'lessons': [
+                {'id': 7, 'title': 'Telling Time'},
+                {'id': 8, 'title': 'Weather and Seasons'},
+                {'id': 9, 'title': 'Shopping for Groceries'},
+            ]
+        }
+    ]
+
+    return jsonify({'units': units})
 
 @api_bp.route('/quiz', methods=['GET'])
 def get_quiz():
